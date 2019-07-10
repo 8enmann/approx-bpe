@@ -71,17 +71,18 @@ class Worker(mp.Process):
         """This shouldn't be called directly; call `worker.start()`."""
         logging.info(f'started {self.name}')
         self.byte_list = str_to_byte_list(self.corpus)
+        original_length = len(self.byte_list)
         self.vocab = set(self.byte_list)
         self.vocab_q.put(self.vocab)
         while True:
             counts = Counter(get_pairs(self.byte_list))
-            # TODO: only put top_k * factor
+            # Only put top_k * factor to save IPC cost.
             self.count_q.put(dict(counts.most_common(self.top_k * 2)))
-            # self.count_q.put(counts)
             # Wait for main thread to send top k merges
             with self.top_k_ready:
                 self.top_k_ready.wait()
             if len(self.top_k_merges) == 0:
+                logging.info(f'Final compression {len(byte_list)}/{original_length} = {len(byte_list)/original_length:.2f}')
                 break
             self.byte_list = list(merge(self.top_k_merges, self.byte_list))
 
@@ -192,6 +193,7 @@ def compute_vocab(corpus: str, max_vocab_size:int=3000, max_merges:int=10, top_k
     if len(corpus) < min(max_merges, max_vocab_size):
         raise Exception('Corpus must be bigger than max_merges')
     l = str_to_byte_list(corpus)
+    original_length = len(l)
     vocab = set(l)
     bar = tqdm.tqdm(total=max_vocab_size)
     for i in range(max_merges):
@@ -204,6 +206,7 @@ def compute_vocab(corpus: str, max_vocab_size:int=3000, max_merges:int=10, top_k
         bar.refresh()
         if len(vocab) >= max_vocab_size:
             break
+    logging.info(f'Final compression {len(l)}/{original_length} = {len(l)/original_length:.2f}')
     bar.close()
     return vocab
 
@@ -269,7 +272,7 @@ class Timer:
 
 def main(
     multi=True, 
-    vocab_filename='vocab_multi.bpe', 
+    vocab_filename='vocab_multi.bpe',
     level='INFO', 
     max_vocab_size=30000,
     top_k=100,
