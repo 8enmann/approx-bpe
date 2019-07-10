@@ -218,7 +218,7 @@ class Encoder:
     EOF = b'\0F'
     UNK = b'\0UNK'
 
-    def __init__(self, vocab: Iterable[bytes]=None, vocab_file: str=DEFAULT_VOCAB_FILENAME):
+    def __init__(self, vocab: Iterable[bytes]=None, vocab_file: str=DEFAULT_VOCAB_FILENAME, max_length: int=None):
         if vocab:
             self.vocab = vocab
         else:
@@ -228,7 +228,7 @@ class Encoder:
         # break keys into tuples for faster match?
         self.encoder = {x:i for i,x in enumerate(vocab)}
         self.decoder = {i:x for i,x in enumerate(vocab)}
-        self.max_length = max(map(len, self.vocab))
+        self.max_length = max_length or max(map(len, self.vocab))
         self.UNK_EMB = len(self.vocab) - 1
 
     def encode(self, corpus: str) -> Iterable[int]:
