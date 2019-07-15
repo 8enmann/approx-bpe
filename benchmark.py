@@ -2,6 +2,7 @@ import time
 import fire
 from bpe import Encoder
 from pytorch_pretrained_bert import GPT2Tokenizer
+import numba_bpe
 
 class Timer:
     def __enter__(self):
@@ -22,7 +23,6 @@ def main(mode:str='baseline', max_length:int=None):
     encoder = dict(zip(vocab, range(len(vocab))))
     greedy = Encoder(vocab)
 
-
     with Timer():
         if mode == 'baseline':
             out = enc.encode(corpus)
@@ -30,12 +30,13 @@ def main(mode:str='baseline', max_length:int=None):
             out = list(greedy.encode(corpus))
         elif mode == 'greedy-c':
             pass
+        elif mode == 'numba':
+            out = list(numba_bpe.numba_encode(numba_bpe.random_str(100000), numba_bpe.fake_vocab()))
+        elif mode == 'nonumba':
+            out = list(numba_bpe.encode(numba_bpe.random_str(100000), numba_bpe.fake_vocab()))
         else:
             raise Exception('Uknown mode %s'.format(mode))
         print(f'Compression ratio {len(out)/len(corpus):.4f}')
-
-
-
 
 if __name__ == '__main__':
     fire.Fire(main)
